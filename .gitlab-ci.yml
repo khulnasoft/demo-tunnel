@@ -1,0 +1,41 @@
+stages:
+  - test
+
+tunnel_container_scanning:
+  stage: test
+  image: docker:19-dind
+  services:
+    - name: docker:dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    # See https://github.com/docker-library/docker/pull/166
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE: tunnel-ci-test:$CI_COMMIT_SHA
+    TUNNEL_NO_PROGRESS: "true"
+    TUNNEL_CACHE_DIR: ".tunnelcache/"
+    CS_DISABLE_DEPENDENCY_LIST: "false"
+  before_script:
+    - export TUNNEL_VERSION=$(wget -qO - "https://api.github.com/repos/khulnasoft/tunnel/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    - echo $TUNNEL_VERSION
+    - wget --no-verbose https://github.com/khulnasoft/tunnel/releases/download/v${TUNNEL_VERSION}/tunnel_${TUNNEL_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
+  allow_failure: true
+  script:
+    # Build image
+    - docker build -f Dockerfile -t $IMAGE .
+    # Build image report
+    - ./tunnel image --exit-code 0 --format template --template "@contrib/gitlab.tpl" -o gl-container-scanning-report.json $IMAGE
+    # Print report
+    - ./tunnel image --exit-code 0 --severity HIGH $IMAGE
+    # Fail on severe vulnerabilities - 1 fail
+    - ./tunnel image --exit-code 1 --severity CRITICAL $IMAGE
+  cache:
+    paths:
+      - .tunnelcache/
+  # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+      dependency_scanning: gl-dependency-scanning-report.json

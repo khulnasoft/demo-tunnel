@@ -1,0 +1,48 @@
+name: scan-image
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+env:
+  ORG: "khulnasoft"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  scan-image:
+    name: scan-image
+    runs-on: ubuntu-20.04
+    permissions:
+      security-events: write # https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build an image from Dockerfile
+        run: |
+          docker build -t docker.io/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Tunnel - vulnerability Scanner
+        uses: khulnasoft/tunnel-action@master
+        with:
+          image-ref: 'docker.io/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+
+      - name: Tunnel - vulnerability Scanner - sarif
+        uses: khulnasoft/tunnel-action@master
+        with:
+          image-ref: 'docker.io/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'tunnel.sarif'
+          severity: 'HIGH,CRITICAL'
+
+      - name: Upload Tunnel scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@main
+        with:
+          sarif_file: 'tunnel.sarif'
