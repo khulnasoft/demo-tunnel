@@ -10,7 +10,7 @@ env:
 jobs:
   scan-fs:
     name: filesystem
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       security-events: write # https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github
     steps:
