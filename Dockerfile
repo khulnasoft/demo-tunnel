@@ -1,2 +1,2 @@
 FROM alpine:latest
-COPY --from=goreleaser/goreleaser:v0.183.0 /usr/local/bin/ /my
+COPY --from=goreleaser/goreleaser:v1.23.0 /usr/local/bin/ /my
