@@ -3,7 +3,7 @@ stages:
 
 tunnel_container_scanning:
   stage: test
-  image: docker:19-dind
+  image: docker:25-dind
   services:
     - name: docker:dind
       entrypoint: ["env", "-u", "DOCKER_HOST"]
